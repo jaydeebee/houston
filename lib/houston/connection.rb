@@ -47,6 +47,14 @@ module Houston
       retries = 2
       begin
         @ssl.connect_nonblock
+      rescue IO::WaitReadable => e
+        read_sock = IO.select([@ssl], nil, [@ssl], 10)
+        retry if read_sock and read_sock[0]
+        raise e
+      rescue IO::WaitWRitable => e
+        read_sock, write_sock = IO.select(nil, [@ssl], [@ssl], 10)
+        retry if write_sock and write_sock[0]
+        raise e
       rescue OpenSSL::SSL::SSLError => e
         raise e if retries == 0
         retries -= 1
