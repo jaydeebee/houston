@@ -18,9 +18,11 @@ module Houston
         connection = new(uri, certificate, passphrase)
         connection.open
 
-        yield connection
-
-        connection.close
+        begin
+          yield connection
+        ensure
+          connection.close
+        end
       end
     end
 
@@ -41,7 +43,15 @@ module Houston
 
       @ssl = OpenSSL::SSL::SSLSocket.new(@socket, context)
       @ssl.sync = true
-      @ssl.connect
+
+      retries = 2
+      begin
+        @ssl.connect_nonblock
+      rescue OpenSSL::SSL::SSLError => e
+        raise e if retries == 0
+        retries -= 1
+        retry
+      end
     end
 
     def open?
